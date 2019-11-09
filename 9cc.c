@@ -22,6 +22,9 @@ struct Token {
 	char *str; // トークン文字列
 };
 
+// 入力文字列
+char *user_input;
+
 // 現在のトークン
 Token *currentToken;
 
@@ -33,6 +36,19 @@ void error(char *fmt, ...) {
 	vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...) {
+		va_list ap;
+		va_start(ap, fmt);
+
+		int pos = loc - user_input;
+		fprintf(stderr, "%s\n", user_input);
+		fprintf(stderr, "%*s", pos, ""); // pos個の空白を出力
+		fprintf(stderr, "^ ");
+		vfprintf(stderr, fmt, ap);
+		fprintf(stderr, "\n");
+		exit(1);
 }
 
 // 次のトークンがopである場合、トークンを１つ進めてtrueを返す。
@@ -49,7 +65,7 @@ bool consume(char op) {
 // それ以外の場合、エラーを報告する
 void expect(char op) {
 	if (currentToken->kind != TK_RESERVED || currentToken->str[0] != op) {
-		error("''%c'ではありません", op);
+		error_at(currentToken->str, "''%c'ではありません", op);
 	}
 	currentToken = currentToken->next;
 }
@@ -58,7 +74,7 @@ void expect(char op) {
 // それ以外の場合、エラーを報告する
 int expect_number() {
 	if (currentToken->kind != TK_NUM) {
-		error("数ではありません");
+		error_at(currentToken->str, "数ではありません");
 	}
 	int val = currentToken->val;
 	currentToken = currentToken->next;
@@ -113,7 +129,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	currentToken = tokenize(argv[1]);
+	user_input = argv[1];
+	currentToken = tokenize(user_input);
 
 	printf(".intel_syntax noprefix\n");
   printf(".global main\n");
