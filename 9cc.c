@@ -162,6 +162,7 @@ Node *new_node_num(int val){
 Node *expr();
 Node *mul();
 Node *primary();
+Node *unary();
 
 // 加減算
 Node *expr(){
@@ -182,19 +183,32 @@ Node *expr(){
 
 // 乗除算
 Node *mul() {
-	Node *node = primary();
+	Node *node = unary();
 
 	for(;;) {
 		if (consume('*')) {
-			node = new_binary(ND_MUL, node, primary());
+			node = new_binary(ND_MUL, node, unary());
 		}
 		else if (consume('/')) {
-			node = new_binary(ND_DIV, node, primary());
+			node = new_binary(ND_DIV, node, unary());
 		}
 		else {
 			return node;
 		}
 	}
+}
+
+// 単項演算子
+Node *unary() {
+		if (consume('+')) {
+			return unary();
+		}
+		else if (consume('-')) {
+			return new_binary(ND_SUB, new_node_num(0), unary());
+		}
+		else {
+			return primary();
+		}
 }
 
 // 単項式
