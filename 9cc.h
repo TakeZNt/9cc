@@ -11,6 +11,7 @@ typedef struct Node Node;
 // トークンの種類
 typedef enum {
 	TK_RESERVED, // 記号
+	TK_IDENT, // 識別子
 	TK_NUM, // 数値
 	TK_EOF, // 入力の終わり
 } TokenKind;
@@ -34,6 +35,8 @@ typedef enum {
 	ND_NE, // !=
 	ND_LT, // <
 	ND_LE, // <=
+	ND_ASSIGN, // =
+	ND_LVAR, // ローカル変数
 	ND_NUM, // 整数
 } NodeKind;
 
@@ -42,7 +45,8 @@ struct Node {
 	NodeKind kind;
 	Node *lhs;
 	Node *rhs;
-	int val;
+	int val; // ND_NUMの場合に使う
+	int offset;  // ND_LVARの場合に使う
 };
 
 // parse.c用
@@ -59,6 +63,7 @@ bool tokenEqual(char *op);
 bool consume(char *op);
 void expect(char *op);
 int expect_number();
+Token *consume_ident(void);
 bool at_eof();
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 bool startsWith(char *p, char *q);
@@ -66,6 +71,11 @@ Token *tokenize(char *p);
 
 Node *new_binary(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_node_num(int val);
+
+extern Node *code[100]; // stmtのリスト
+void program();
+Node *stmt();
+Node *assign();
 Node *expr();
 Node *equality();
 Node *relational();
@@ -76,4 +86,5 @@ Node *primary();
 
 // codegen.c用
 
+void gen_lval(Node *node);
 void gen(Node *node);

@@ -69,6 +69,17 @@ int expect_number() {
 	return val;
 }
 
+// 次のトークンが識別子である場合、トークンを１つ進めてその値を返す。
+// それ以外の場合、NULLを返す。
+Token *consume_ident(void) {
+	if (currentToken->kind != TK_IDENT) {
+		return NULL;
+	}
+	Token *t = currentToken;
+	currentToken = currentToken->next;
+	return t;
+}
+
 // トークンがもうないか
 bool at_eof() {
 	return currentToken->kind == TK_EOF;
@@ -100,20 +111,28 @@ Token *tokenize(char *p) {
 				p++;
 				continue;
 			}
+			// 2文字の記号の処理
 			if (startsWith(p, "==") || startsWith(p, "!=") || startsWith(p, "<=") || startsWith(p, ">=")) {
 				cur = new_token(TK_RESERVED, cur, p, 2);
 				p += 2;
 				continue;
 			}
-			if(strchr("+-*/()<>", *p)) {
+			// 1文字の記号の処理
+			if(strchr("+-*/()<>=;", *p)) {
 				cur = new_token(TK_RESERVED, cur, p++, 1);
 				continue;
 			}
+			// 数値の処理
 			if (isdigit(*p)) {
 				cur = new_token(TK_NUM, cur, p, 0); // この時点ではトークンの長さは不明なので0を入れておく
 				char *q = p; // 数値のパース前の位置を覚えておく
 				cur->val = strtol(p, &p, 10); // ここでpが進む
 				cur->len = p - q; // 進んだ分が文字列の長さ
+				continue;
+			}
+			// 変数の処理
+			if('a' <= *p && *p <= 'z'){
+				cur = new_token(TK_IDENT, cur, p++, 1);
 				continue;
 			}
 			error("トークナイズできません");
@@ -122,6 +141,8 @@ Token *tokenize(char *p) {
 		new_token(TK_EOF, cur, p, 0);
 		return head.next;
 }
+
+Node *code[100];
 
 // 2項演算子のノードを作成する
 Node *new_binary(NodeKind kind, Node *lhs, Node *rhs){
@@ -140,10 +161,34 @@ Node *new_node_num(int val){
 	return node;
 }
 
+// プログラム全体
+void program() {
+	int i = 0;
+	while(!at_eof()) {
+		code[i++] = stmt();
+	}
+	code[i] = NULL;
+}
+
+// 文
+Node *stmt() {
+	Node *node = expr();
+	expect(";");
+	return node;
+
+}
+// 代入式
+Node *assign() {
+	Node *node = equality();
+	if (consume("=")) {
+		node = new_binary(ND_ASSIGN, node, assign());
+	}
+	return node;
+}
 
 // 式
 Node *expr(){
-	return equality();
+	return assign();
 }
 
 // 等価式
@@ -238,8 +283,15 @@ Node *primary() {
 		expect(")");
 		return node;
 	}
-	else {
-		// 今の文法では整数のはず
-		return new_node_num(expect_number());
+
+	Token *t = consume_ident();
+	if (t) {
+		Node *node = calloc(1, sizeof(Node));
+		node->kind = ND_LVAR;
+		node->offset = (t->str[0] - 'a' + 1) * 8; // 変数の長さは1
+		return node;
 	}
+
+	// 今の文法では整数のはず
+	return new_node_num(expect_number());
 }
